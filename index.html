@@ -1,0 +1,392 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Clock, 
+  Calendar, 
+  UserPlus, 
+  PenTool, 
+  Trash2, 
+  Zap, 
+  CheckCircle2, 
+  TrendingUp, 
+  Heart, 
+  Truck, 
+  Plus, 
+  Minus, 
+  RotateCcw,
+  ChevronRight,
+  ChevronLeft,
+  FileText
+} from 'lucide-react';
+
+// --- HELPER FUNCTIONS ---
+const evaluateExpression = (val) => {
+  if (!val || val === "") return 0;
+  if (typeof val === 'number') return val;
+  const sum = val
+    .split('+')
+    .map(part => parseFloat(part.trim()))
+    .filter(num => !isNaN(num))
+    .reduce((acc, curr) => acc + curr, 0);
+  return Math.max(0, Math.min(24, sum)); 
+};
+
+// --- SUB-COMPONENTS ---
+
+const QuestionGroup = ({ title, icon: Icon, children }) => (
+  <div className="bg-white p-5 sm:p-6 rounded-[2rem] shadow-sm border border-slate-100 mb-6 transition-all">
+    <div className="flex items-center gap-3 mb-4">
+      <div className="p-2 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-100 shrink-0">
+        <Icon size={18} />
+      </div>
+      <h3 className="text-lg font-black text-slate-800 tracking-tight">{title}</h3>
+    </div>
+    <div className="space-y-1">
+      {children}
+    </div>
+  </div>
+);
+
+const IndustrialStepper = ({ label, name, value, onUpdate, onManualInput, onReset }) => {
+  return (
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 py-3 border-b border-slate-50 last:border-0 group/row">
+      <label className="text-xs font-bold text-slate-700 leading-tight md:max-w-[55%]">
+        {label}
+      </label>
+      
+      <div className="flex items-center gap-3 shrink-0">
+        <button
+          onClick={() => onUpdate(name, -0.5)}
+          className="h-9 w-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all active:scale-90"
+        >
+          <Minus size={16} strokeWidth={3} />
+        </button>
+
+        <div className="flex flex-col items-center gap-1 min-w-[120px]">
+          <div className="w-28 h-9 relative group">
+            <input
+              type="text"
+              value={value}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => onManualInput(name, e.target.value)}
+              placeholder="0"
+              className="w-full h-full bg-blue-50/50 border-2 border-blue-100 rounded-xl text-center text-sm font-black text-blue-600 focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all px-2"
+            />
+            <button 
+              onClick={() => onReset(name)}
+              className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity p-1 text-blue-300 hover:text-blue-500 bg-white/80 rounded-md shadow-sm border border-blue-50"
+            >
+              <RotateCcw size={10} />
+            </button>
+          </div>
+          <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest leading-none">
+            Avg. Hrs / Day
+          </span>
+        </div>
+
+        <button
+          onClick={() => onUpdate(name, 0.5)}
+          className="h-9 w-9 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shadow-blue-100 transition-all active:scale-90"
+        >
+          <Plus size={16} strokeWidth={3} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const App = () => {
+  const [showResults, setShowResults] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const resultsRef = useRef(null);
+
+  const [formData, setFormData] = useState({
+    phoneHours: "1",
+    adminHours: "1",
+    dispatchHours: "1",
+    followupHours: "1",
+    crmHours: "1",
+    huntHours: "1",
+  });
+
+  const totalSteps = 3;
+
+  const updateValue = (name, amount) => {
+    setFormData(prev => {
+      const currentSum = evaluateExpression(prev[name]);
+      const newVal = Math.max(0, currentSum + amount);
+      return { ...prev, [name]: (Math.round(newVal * 10) / 10).toString() };
+    });
+  };
+
+  const handleManualInput = (name, val) => {
+    const sanitized = val.replace(/[^0-9.+ ]/g, ''); 
+    setFormData(prev => ({ ...prev, [name]: sanitized }));
+  };
+
+  const resetValue = (name) => {
+    setFormData(prev => ({ ...prev, [name]: "0" }));
+  };
+
+  const calculateTotals = () => {
+    const dailyHoursNum = Object.keys(formData).reduce((acc, key) => {
+      return acc + evaluateExpression(formData[key]);
+    }, 0);
+    
+    const weeklyHours = dailyHoursNum * 5; 
+    const monthlyHoursNum = weeklyHours * 4.33; 
+
+    return {
+      daily: dailyHoursNum.toFixed(1),
+      monthly: Math.round(monthlyHoursNum),
+      monthlyNum: monthlyHoursNum,
+      dailyNum: dailyHoursNum
+    };
+  };
+
+  const totals = calculateTotals();
+
+  const handleNext = () => {
+    if (currentStep < totalSteps - 1) {
+      setCurrentStep(currentStep + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      revealResults();
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const revealResults = () => {
+    setShowResults(true);
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const progress = ((currentStep + 1) / totalSteps) * 100;
+
+  const categories = ["The Intake & Admin Phase", "The Logistics Phase", "The \"Paperwork\" Phase"];
+  const icons = [UserPlus, Truck, FileText];
+  const currentCategoryName = categories[currentStep];
+  const currentIcon = icons[currentStep];
+  const integratedSubHeading = `Step ${currentStep + 1} of ${totalSteps}: ${currentCategoryName}`;
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 pb-32">
+      <nav className="bg-white/90 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center">
+            {/* Logo Image */}
+            <img 
+              src="Untitled design (99).png" 
+              alt="Restoration AI Logo" 
+              className="h-10 w-auto object-contain cursor-pointer"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            {/* Fallback Text */}
+            <div className="hidden items-center gap-2 font-black text-2xl tracking-tighter">
+              <span className="text-blue-600">RESTORATION</span>
+              <span className="text-slate-400 font-medium">AI</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+            <Clock size={12} className="text-blue-500" />
+            <span>Time Audit</span>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-3xl mx-auto px-6 pt-12">
+        {!showResults && (
+          <>
+            <header className="text-center mb-10">
+              <h1 className="text-3xl sm:text-5xl font-black text-slate-900 mb-3 tracking-tight leading-[1.1]">
+                The <span className="text-red-600 relative inline-block">
+                  Hidden Time Loss
+                  <span className="absolute bottom-1 left-0 w-full h-2 bg-red-100 -z-10 rounded-full"></span>
+                </span> Calculator.
+              </h1>
+              <p className="text-sm sm:text-base text-slate-500 max-w-xl mx-auto font-medium leading-relaxed">
+                Input your typical daily time for each task using your own estimates. This will help reveal exactly how much time you might not realize is being wasted on office work every month.
+              </p>
+            </header>
+
+            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+              {currentStep === 0 && (
+                <QuestionGroup title={integratedSubHeading} icon={currentIcon}>
+                  <IndustrialStepper 
+                    label="How much time is spent answering the phone daily?" 
+                    name="phoneHours" 
+                    value={formData.phoneHours}
+                    onUpdate={updateValue}
+                    onManualInput={handleManualInput}
+                    onReset={resetValue}
+                  />
+                  <IndustrialStepper 
+                    label="How much time is spent on miscellaneous 'receptionist-style' admin tasks?" 
+                    name="adminHours" 
+                    value={formData.adminHours}
+                    onUpdate={updateValue}
+                    onManualInput={handleManualInput}
+                    onReset={resetValue}
+                  />
+                </QuestionGroup>
+              )}
+
+              {currentStep === 1 && (
+                <QuestionGroup title={integratedSubHeading} icon={currentIcon}>
+                  <IndustrialStepper 
+                    label="How much time is spent relaying job details and coordinating crew dispatching?" 
+                    name="dispatchHours" 
+                    value={formData.dispatchHours}
+                    onUpdate={updateValue}
+                    onManualInput={handleManualInput}
+                    onReset={resetValue}
+                  />
+                  <IndustrialStepper 
+                    label="How much time is spent confirming appointments and arrival windows with customers?" 
+                    name="followupHours" 
+                    value={formData.followupHours}
+                    onUpdate={updateValue}
+                    onManualInput={handleManualInput}
+                    onReset={resetValue}
+                  />
+                </QuestionGroup>
+              )}
+
+              {currentStep === 2 && (
+                <QuestionGroup title={integratedSubHeading} icon={currentIcon}>
+                  <IndustrialStepper 
+                    label="How much time is spent manually typing contact info and job notes into your CRM?" 
+                    name="crmHours" 
+                    value={formData.crmHours}
+                    onUpdate={updateValue}
+                    onManualInput={handleManualInput}
+                    onReset={resetValue}
+                  />
+                  <IndustrialStepper 
+                    label="How much time is wasted searching for messages across texts, emails, and social DMs?" 
+                    name="huntHours" 
+                    value={formData.huntHours}
+                    onUpdate={updateValue}
+                    onManualInput={handleManualInput}
+                    onReset={resetValue}
+                  />
+                </QuestionGroup>
+              )}
+            </div>
+
+            <div className="mt-8 flex justify-center gap-4">
+              {currentStep > 0 && (
+                <button
+                  onClick={handleBack}
+                  className="group relative inline-flex items-center gap-2 px-8 py-5 text-xl font-black rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95 border-b-4 text-slate-500 bg-white border-slate-200 hover:bg-slate-50 shadow-slate-100"
+                >
+                  <ChevronLeft size={20} strokeWidth={3} />
+                  BACK
+                </button>
+              )}
+              <button
+                onClick={handleNext}
+                className={`group relative inline-flex items-center gap-3 px-8 py-5 text-xl font-black rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95 border-b-4 text-white ${
+                  currentStep === totalSteps - 1 
+                  ? 'bg-red-600 hover:bg-red-700 border-red-800 shadow-red-200' 
+                  : 'bg-blue-600 hover:bg-blue-700 border-blue-800 shadow-blue-200'
+                }`}
+              >
+                {currentStep === totalSteps - 1 ? (
+                  <>
+                    <Zap className="fill-current group-hover:animate-pulse" size={20} />
+                    REVEAL TIME WASTED
+                  </>
+                ) : (
+                  <>
+                    NEXT
+                    <ChevronRight size={20} strokeWidth={3} />
+                  </>
+                )}
+              </button>
+            </div>
+          </>
+        )}
+
+        {showResults && (
+          <div ref={resultsRef} className="animate-in fade-in slide-in-from-bottom-12 duration-1000 pb-20">
+            <div className="bg-slate-900 rounded-[3.5rem] p-8 sm:p-16 text-center border-4 border-slate-800 shadow-3xl overflow-hidden relative">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-blue-500/10 blur-[120px] pointer-events-none" />
+
+              <h2 className="text-slate-400 font-bold uppercase tracking-[0.4em] text-xs mb-10">TOTAL TIME BEING STOLEN</h2>
+              
+              <div className="mb-12">
+                <div className="text-red-500 font-black text-8xl sm:text-[10rem] leading-none mb-4 drop-shadow-[0_4px_20px_rgba(239,68,68,0.4)]">
+                  {totals.monthly}
+                </div>
+                <div className="text-red-400 font-bold text-2xl sm:text-3xl uppercase tracking-[0.15em]">
+                  Hours Lost Per Month
+                </div>
+              </div>
+
+              <div className="space-y-10 max-w-2xl mx-auto relative z-10">
+                <p className="text-white text-2xl sm:text-4xl font-medium leading-[1.2]">
+                  That's <span className="text-blue-400 font-bold underline decoration-blue-400/30 underline-offset-8 tabular-nums">{totals.daily} hours every single day</span> you're doing "desk work" instead of growing.
+                </p>
+
+                <button className="w-full py-8 bg-blue-500 text-white text-2xl sm:text-3xl font-black rounded-[2.5rem] shadow-[0_0_40px_rgba(59,130,246,0.6)] animate-pulse hover:bg-blue-400 transition-all flex items-center justify-center gap-5 group border-b-8 border-blue-700 active:border-b-0 active:translate-y-1">
+                  Click To Claim Your {totals.monthly} Hours Back
+                  <CheckCircle2 className="text-white group-hover:scale-125 transition-transform" size={32} />
+                </button>
+
+                <div className="py-12 px-10 bg-slate-800/50 rounded-[2.5rem] border-2 border-slate-700/50 backdrop-blur-md">
+                  <h3 className="text-blue-400 font-black text-4xl mb-6 tracking-tight">
+                    The AI Solution
+                  </h3>
+                  <div className="space-y-6">
+                    <p className="text-blue-50/90 text-xl sm:text-2xl leading-relaxed font-bold italic tracking-tight">
+                      Imagine what you could do with those {totals.monthly} extra hours every month.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-700/50 pt-6">
+                      <div className="text-white font-black text-2xl uppercase tracking-tighter flex items-center justify-center gap-2">
+                        <TrendingUp className="text-green-400" size={24} /> Scale Revenue?
+                      </div>
+                      <div className="text-white font-black text-2xl uppercase tracking-tighter flex items-center justify-center gap-2">
+                        <Heart className="text-pink-400" size={24} /> True Freedom?
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => { setCurrentStep(0); setShowResults(false); }}
+                  className="text-slate-500 hover:text-slate-300 transition-colors flex items-center justify-center gap-2 mx-auto mt-10"
+                >
+                  <RotateCcw size={16} />
+                  Start Over
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      <footer className="mt-10 pt-16 pb-12 text-center text-slate-400">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="font-black text-slate-800 text-sm tracking-[0.3em] mb-4 uppercase">RESTORATION AI SYSTEM</div>
+          <p className="text-xs mb-2 tracking-wide font-medium">© {new Date().getFullYear()} Restoration AI. All rights reserved.</p>
+          <p className="text-[10px] max-w-md mx-auto opacity-60 font-medium leading-relaxed">
+            Audit calculations based on 260 working days per year (5-day week). Individual results vary by company size and call volume.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default App;
