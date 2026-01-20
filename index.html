@@ -1,392 +1,351 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Clock, 
-  Calendar, 
-  UserPlus, 
-  PenTool, 
-  Trash2, 
-  Zap, 
-  CheckCircle2, 
-  TrendingUp, 
-  Heart, 
-  Truck, 
-  Plus, 
-  Minus, 
-  RotateCcw,
-  ChevronRight,
-  ChevronLeft,
-  FileText
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Hidden Time Loss Calculator</title>
+    <!-- React and ReactDOM CDNs -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX transformation in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #F8FAFC;
+            margin: 0;
+        }
+        .animate-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-// --- HELPER FUNCTIONS ---
-const evaluateExpression = (val) => {
-  if (!val || val === "") return 0;
-  if (typeof val === 'number') return val;
-  const sum = val
-    .split('+')
-    .map(part => parseFloat(part.trim()))
-    .filter(num => !isNaN(num))
-    .reduce((acc, curr) => acc + curr, 0);
-  return Math.max(0, Math.min(24, sum)); 
-};
+    <script type="text/babel">
+        const { useState, useEffect, useRef, Fragment } = React;
 
-// --- SUB-COMPONENTS ---
+        /**
+         * Custom Icon Component
+         * Hardcoded SVG paths to ensure 100% reliability on GitHub/Netlify
+         * without relying on external Lucide parsing logic.
+         */
+        const Icon = ({ name, size = 20, className = "", strokeWidth = 2, fill = "none" }) => {
+            const icons = {
+                Clock: <path d="M12 6v6l4 2M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />,
+                UserPlus: <g><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></g>,
+                Truck: <g><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></g>,
+                FileText: <g><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></g>,
+                Minus: <line x1="5" y1="12" x2="19" y2="12" />,
+                Plus: <g><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></g>,
+                RotateCcw: <g><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></g>,
+                Zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
+                CheckCircle2: <g><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></g>,
+                TrendingUp: <g><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></g>,
+                Heart: <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />,
+                ChevronRight: <polyline points="9 18 15 12 9 6" />,
+                ChevronLeft: <polyline points="15 18 9 12 15 6" />
+            };
 
-const QuestionGroup = ({ title, icon: Icon, children }) => (
-  <div className="bg-white p-5 sm:p-6 rounded-[2rem] shadow-sm border border-slate-100 mb-6 transition-all">
-    <div className="flex items-center gap-3 mb-4">
-      <div className="p-2 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-100 shrink-0">
-        <Icon size={18} />
-      </div>
-      <h3 className="text-lg font-black text-slate-800 tracking-tight">{title}</h3>
-    </div>
-    <div className="space-y-1">
-      {children}
-    </div>
-  </div>
-);
-
-const IndustrialStepper = ({ label, name, value, onUpdate, onManualInput, onReset }) => {
-  return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 py-3 border-b border-slate-50 last:border-0 group/row">
-      <label className="text-xs font-bold text-slate-700 leading-tight md:max-w-[55%]">
-        {label}
-      </label>
-      
-      <div className="flex items-center gap-3 shrink-0">
-        <button
-          onClick={() => onUpdate(name, -0.5)}
-          className="h-9 w-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all active:scale-90"
-        >
-          <Minus size={16} strokeWidth={3} />
-        </button>
-
-        <div className="flex flex-col items-center gap-1 min-w-[120px]">
-          <div className="w-28 h-9 relative group">
-            <input
-              type="text"
-              value={value}
-              onFocus={(e) => e.target.select()}
-              onChange={(e) => onManualInput(name, e.target.value)}
-              placeholder="0"
-              className="w-full h-full bg-blue-50/50 border-2 border-blue-100 rounded-xl text-center text-sm font-black text-blue-600 focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all px-2"
-            />
-            <button 
-              onClick={() => onReset(name)}
-              className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity p-1 text-blue-300 hover:text-blue-500 bg-white/80 rounded-md shadow-sm border border-blue-50"
-            >
-              <RotateCcw size={10} />
-            </button>
-          </div>
-          <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest leading-none">
-            Avg. Hrs / Day
-          </span>
-        </div>
-
-        <button
-          onClick={() => onUpdate(name, 0.5)}
-          className="h-9 w-9 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shadow-blue-100 transition-all active:scale-90"
-        >
-          <Plus size={16} strokeWidth={3} />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const App = () => {
-  const [showResults, setShowResults] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const resultsRef = useRef(null);
-
-  const [formData, setFormData] = useState({
-    phoneHours: "1",
-    adminHours: "1",
-    dispatchHours: "1",
-    followupHours: "1",
-    crmHours: "1",
-    huntHours: "1",
-  });
-
-  const totalSteps = 3;
-
-  const updateValue = (name, amount) => {
-    setFormData(prev => {
-      const currentSum = evaluateExpression(prev[name]);
-      const newVal = Math.max(0, currentSum + amount);
-      return { ...prev, [name]: (Math.round(newVal * 10) / 10).toString() };
-    });
-  };
-
-  const handleManualInput = (name, val) => {
-    const sanitized = val.replace(/[^0-9.+ ]/g, ''); 
-    setFormData(prev => ({ ...prev, [name]: sanitized }));
-  };
-
-  const resetValue = (name) => {
-    setFormData(prev => ({ ...prev, [name]: "0" }));
-  };
-
-  const calculateTotals = () => {
-    const dailyHoursNum = Object.keys(formData).reduce((acc, key) => {
-      return acc + evaluateExpression(formData[key]);
-    }, 0);
-    
-    const weeklyHours = dailyHoursNum * 5; 
-    const monthlyHoursNum = weeklyHours * 4.33; 
-
-    return {
-      daily: dailyHoursNum.toFixed(1),
-      monthly: Math.round(monthlyHoursNum),
-      monthlyNum: monthlyHoursNum,
-      dailyNum: dailyHoursNum
-    };
-  };
-
-  const totals = calculateTotals();
-
-  const handleNext = () => {
-    if (currentStep < totalSteps - 1) {
-      setCurrentStep(currentStep + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      revealResults();
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const revealResults = () => {
-    setShowResults(true);
-    setTimeout(() => {
-      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
-  };
-
-  const progress = ((currentStep + 1) / totalSteps) * 100;
-
-  const categories = ["The Intake & Admin Phase", "The Logistics Phase", "The \"Paperwork\" Phase"];
-  const icons = [UserPlus, Truck, FileText];
-  const currentCategoryName = categories[currentStep];
-  const currentIcon = icons[currentStep];
-  const integratedSubHeading = `Step ${currentStep + 1} of ${totalSteps}: ${currentCategoryName}`;
-
-  return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 pb-32">
-      <nav className="bg-white/90 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center">
-            {/* Logo Image */}
-            <img 
-              src="Untitled design (99).png" 
-              alt="Restoration AI Logo" 
-              className="h-10 w-auto object-contain cursor-pointer"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-              }}
-            />
-            {/* Fallback Text */}
-            <div className="hidden items-center gap-2 font-black text-2xl tracking-tighter">
-              <span className="text-blue-600">RESTORATION</span>
-              <span className="text-slate-400 font-medium">AI</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-            <Clock size={12} className="text-blue-500" />
-            <span>Time Audit</span>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-3xl mx-auto px-6 pt-12">
-        {!showResults && (
-          <>
-            <header className="text-center mb-10">
-              <h1 className="text-3xl sm:text-5xl font-black text-slate-900 mb-3 tracking-tight leading-[1.1]">
-                The <span className="text-red-600 relative inline-block">
-                  Hidden Time Loss
-                  <span className="absolute bottom-1 left-0 w-full h-2 bg-red-100 -z-10 rounded-full"></span>
-                </span> Calculator.
-              </h1>
-              <p className="text-sm sm:text-base text-slate-500 max-w-xl mx-auto font-medium leading-relaxed">
-                Input your typical daily time for each task using your own estimates. This will help reveal exactly how much time you might not realize is being wasted on office work every month.
-              </p>
-            </header>
-
-            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-              {currentStep === 0 && (
-                <QuestionGroup title={integratedSubHeading} icon={currentIcon}>
-                  <IndustrialStepper 
-                    label="How much time is spent answering the phone daily?" 
-                    name="phoneHours" 
-                    value={formData.phoneHours}
-                    onUpdate={updateValue}
-                    onManualInput={handleManualInput}
-                    onReset={resetValue}
-                  />
-                  <IndustrialStepper 
-                    label="How much time is spent on miscellaneous 'receptionist-style' admin tasks?" 
-                    name="adminHours" 
-                    value={formData.adminHours}
-                    onUpdate={updateValue}
-                    onManualInput={handleManualInput}
-                    onReset={resetValue}
-                  />
-                </QuestionGroup>
-              )}
-
-              {currentStep === 1 && (
-                <QuestionGroup title={integratedSubHeading} icon={currentIcon}>
-                  <IndustrialStepper 
-                    label="How much time is spent relaying job details and coordinating crew dispatching?" 
-                    name="dispatchHours" 
-                    value={formData.dispatchHours}
-                    onUpdate={updateValue}
-                    onManualInput={handleManualInput}
-                    onReset={resetValue}
-                  />
-                  <IndustrialStepper 
-                    label="How much time is spent confirming appointments and arrival windows with customers?" 
-                    name="followupHours" 
-                    value={formData.followupHours}
-                    onUpdate={updateValue}
-                    onManualInput={handleManualInput}
-                    onReset={resetValue}
-                  />
-                </QuestionGroup>
-              )}
-
-              {currentStep === 2 && (
-                <QuestionGroup title={integratedSubHeading} icon={currentIcon}>
-                  <IndustrialStepper 
-                    label="How much time is spent manually typing contact info and job notes into your CRM?" 
-                    name="crmHours" 
-                    value={formData.crmHours}
-                    onUpdate={updateValue}
-                    onManualInput={handleManualInput}
-                    onReset={resetValue}
-                  />
-                  <IndustrialStepper 
-                    label="How much time is wasted searching for messages across texts, emails, and social DMs?" 
-                    name="huntHours" 
-                    value={formData.huntHours}
-                    onUpdate={updateValue}
-                    onManualInput={handleManualInput}
-                    onReset={resetValue}
-                  />
-                </QuestionGroup>
-              )}
-            </div>
-
-            <div className="mt-8 flex justify-center gap-4">
-              {currentStep > 0 && (
-                <button
-                  onClick={handleBack}
-                  className="group relative inline-flex items-center gap-2 px-8 py-5 text-xl font-black rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95 border-b-4 text-slate-500 bg-white border-slate-200 hover:bg-slate-50 shadow-slate-100"
+            return (
+                <svg
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill={fill}
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
                 >
-                  <ChevronLeft size={20} strokeWidth={3} />
-                  BACK
-                </button>
-              )}
-              <button
-                onClick={handleNext}
-                className={`group relative inline-flex items-center gap-3 px-8 py-5 text-xl font-black rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95 border-b-4 text-white ${
-                  currentStep === totalSteps - 1 
-                  ? 'bg-red-600 hover:bg-red-700 border-red-800 shadow-red-200' 
-                  : 'bg-blue-600 hover:bg-blue-700 border-blue-800 shadow-blue-200'
-                }`}
-              >
-                {currentStep === totalSteps - 1 ? (
-                  <>
-                    <Zap className="fill-current group-hover:animate-pulse" size={20} />
-                    REVEAL TIME WASTED
-                  </>
-                ) : (
-                  <>
-                    NEXT
-                    <ChevronRight size={20} strokeWidth={3} />
-                  </>
-                )}
-              </button>
-            </div>
-          </>
-        )}
+                    {icons[name] || null}
+                </svg>
+            );
+        };
 
-        {showResults && (
-          <div ref={resultsRef} className="animate-in fade-in slide-in-from-bottom-12 duration-1000 pb-20">
-            <div className="bg-slate-900 rounded-[3.5rem] p-8 sm:p-16 text-center border-4 border-slate-800 shadow-3xl overflow-hidden relative">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-blue-500/10 blur-[120px] pointer-events-none" />
+        const evaluateExpression = (val) => {
+            if (!val || val === "") return 0;
+            if (typeof val === 'number') return val;
+            const sum = val
+                .split('+')
+                .map(part => parseFloat(part.trim()))
+                .filter(num => !isNaN(num))
+                .reduce((acc, curr) => acc + curr, 0);
+            return Math.max(0, Math.min(24, sum)); 
+        };
 
-              <h2 className="text-slate-400 font-bold uppercase tracking-[0.4em] text-xs mb-10">TOTAL TIME BEING STOLEN</h2>
-              
-              <div className="mb-12">
-                <div className="text-red-500 font-black text-8xl sm:text-[10rem] leading-none mb-4 drop-shadow-[0_4px_20px_rgba(239,68,68,0.4)]">
-                  {totals.monthly}
-                </div>
-                <div className="text-red-400 font-bold text-2xl sm:text-3xl uppercase tracking-[0.15em]">
-                  Hours Lost Per Month
-                </div>
-              </div>
-
-              <div className="space-y-10 max-w-2xl mx-auto relative z-10">
-                <p className="text-white text-2xl sm:text-4xl font-medium leading-[1.2]">
-                  That's <span className="text-blue-400 font-bold underline decoration-blue-400/30 underline-offset-8 tabular-nums">{totals.daily} hours every single day</span> you're doing "desk work" instead of growing.
-                </p>
-
-                <button className="w-full py-8 bg-blue-500 text-white text-2xl sm:text-3xl font-black rounded-[2.5rem] shadow-[0_0_40px_rgba(59,130,246,0.6)] animate-pulse hover:bg-blue-400 transition-all flex items-center justify-center gap-5 group border-b-8 border-blue-700 active:border-b-0 active:translate-y-1">
-                  Click To Claim Your {totals.monthly} Hours Back
-                  <CheckCircle2 className="text-white group-hover:scale-125 transition-transform" size={32} />
-                </button>
-
-                <div className="py-12 px-10 bg-slate-800/50 rounded-[2.5rem] border-2 border-slate-700/50 backdrop-blur-md">
-                  <h3 className="text-blue-400 font-black text-4xl mb-6 tracking-tight">
-                    The AI Solution
-                  </h3>
-                  <div className="space-y-6">
-                    <p className="text-blue-50/90 text-xl sm:text-2xl leading-relaxed font-bold italic tracking-tight">
-                      Imagine what you could do with those {totals.monthly} extra hours every month.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-700/50 pt-6">
-                      <div className="text-white font-black text-2xl uppercase tracking-tighter flex items-center justify-center gap-2">
-                        <TrendingUp className="text-green-400" size={24} /> Scale Revenue?
-                      </div>
-                      <div className="text-white font-black text-2xl uppercase tracking-tighter flex items-center justify-center gap-2">
-                        <Heart className="text-pink-400" size={24} /> True Freedom?
-                      </div>
+        const QuestionGroup = ({ title, iconName, children }) => (
+            <div className="bg-white p-5 sm:p-6 rounded-[2rem] shadow-sm border border-slate-100 mb-6 transition-all">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-100 shrink-0">
+                        <Icon name={iconName} size={18} />
                     </div>
-                  </div>
+                    <h3 className="text-lg font-black text-slate-800 tracking-tight">{title}</h3>
                 </div>
-
-                <button 
-                  onClick={() => { setCurrentStep(0); setShowResults(false); }}
-                  className="text-slate-500 hover:text-slate-300 transition-colors flex items-center justify-center gap-2 mx-auto mt-10"
-                >
-                  <RotateCcw size={16} />
-                  Start Over
-                </button>
-              </div>
+                <div className="space-y-1">
+                    {children}
+                </div>
             </div>
-          </div>
-        )}
-      </main>
+        );
 
-      <footer className="mt-10 pt-16 pb-12 text-center text-slate-400">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="font-black text-slate-800 text-sm tracking-[0.3em] mb-4 uppercase">RESTORATION AI SYSTEM</div>
-          <p className="text-xs mb-2 tracking-wide font-medium">© {new Date().getFullYear()} Restoration AI. All rights reserved.</p>
-          <p className="text-[10px] max-w-md mx-auto opacity-60 font-medium leading-relaxed">
-            Audit calculations based on 260 working days per year (5-day week). Individual results vary by company size and call volume.
-          </p>
-        </div>
-      </footer>
-    </div>
-  );
-};
+        const IndustrialStepper = ({ label, name, value, onUpdate, onManualInput, onReset }) => (
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 py-3 border-b border-slate-50 last:border-0 group/row">
+                <label className="text-xs font-bold text-slate-700 leading-tight md:max-w-[55%]">
+                    {label}
+                </label>
+                <div className="flex items-center gap-3 shrink-0">
+                    <button
+                        onClick={() => onUpdate(name, -0.5)}
+                        className="h-9 w-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all active:scale-90"
+                    >
+                        <Icon name="Minus" size={16} strokeWidth={3} />
+                    </button>
+                    <div className="flex flex-col items-center gap-1 min-w-[120px]">
+                        <div className="w-28 h-9 relative group">
+                            <input
+                                type="text"
+                                value={value}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => onManualInput(name, e.target.value)}
+                                className="w-full h-full bg-blue-50/50 border-2 border-blue-100 rounded-xl text-center text-sm font-black text-blue-600 focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all px-2"
+                            />
+                            <button 
+                                onClick={() => onReset(name)}
+                                className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-blue-300 hover:text-blue-500 bg-white/80 rounded-md shadow-sm border border-blue-50"
+                            >
+                                <Icon name="RotateCcw" size={10} />
+                            </button>
+                        </div>
+                        <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest leading-none">
+                            Avg. Hrs / Day
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => onUpdate(name, 0.5)}
+                        className="h-9 w-9 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shadow-blue-100 transition-all active:scale-90"
+                    >
+                        <Icon name="Plus" size={16} strokeWidth={3} />
+                    </button>
+                </div>
+            </div>
+        );
 
-export default App;
+        const App = () => {
+            const [showResults, setShowResults] = useState(false);
+            const [currentStep, setCurrentStep] = useState(0);
+            const [logoError, setLogoError] = useState(false);
+            const resultsRef = useRef(null);
+
+            const [formData, setFormData] = useState({
+                phoneHours: "1",
+                adminHours: "1",
+                dispatchHours: "1",
+                followupHours: "1",
+                crmHours: "1",
+                huntHours: "1",
+            });
+
+            const totalSteps = 3;
+
+            const updateValue = (name, amount) => {
+                setFormData(prev => {
+                    const currentSum = evaluateExpression(prev[name]);
+                    const newVal = Math.max(0, currentSum + amount);
+                    return { ...prev, [name]: (Math.round(newVal * 10) / 10).toString() };
+                });
+            };
+
+            const handleManualInput = (name, val) => {
+                const sanitized = val.replace(/[^0-9.+ ]/g, ''); 
+                setFormData(prev => ({ ...prev, [name]: sanitized }));
+            };
+
+            const resetValue = (name) => {
+                setFormData(prev => ({ ...prev, [name]: "0" }));
+            };
+
+            const calculateTotals = () => {
+                const dailyHoursNum = Object.keys(formData).reduce((acc, key) => {
+                    return acc + evaluateExpression(formData[key]);
+                }, 0);
+                const weeklyHours = dailyHoursNum * 5; 
+                const monthlyHoursNum = weeklyHours * 4.33; 
+                return {
+                    daily: dailyHoursNum.toFixed(1),
+                    monthly: Math.round(monthlyHoursNum)
+                };
+            };
+
+            const totals = calculateTotals();
+
+            const handleNext = () => {
+                if (currentStep < totalSteps - 1) {
+                    setCurrentStep(currentStep + 1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    setShowResults(true);
+                    setTimeout(() => {
+                        if (resultsRef.current) {
+                            resultsRef.current.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    }, 100);
+                }
+            };
+
+            const handleClaimClick = () => {
+                window.location.href = 'https://link.restorationai.io/widget/bookings/restorationai-specialiststrategy-call';
+            };
+
+            const progress = ((currentStep + 1) / totalSteps) * 100;
+            const categories = ["The Intake & Admin Phase", "The Logistics Phase", "The \"Paperwork\" Phase"];
+            const iconNames = ["UserPlus", "Truck", "FileText"];
+
+            return (
+                <div className="min-h-screen text-slate-900 pb-32">
+                    <nav className="bg-white/90 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+                        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+                            <div className="flex items-center">
+                                {!logoError ? (
+                                    <img 
+                                        src="Untitled design (99).png" 
+                                        alt="Logo" 
+                                        className="h-12 w-auto object-contain cursor-pointer" 
+                                        onError={() => setLogoError(true)}
+                                    />
+                                ) : (
+                                    <div className="flex items-center gap-2 font-black text-2xl tracking-tighter">
+                                        <span className="text-blue-600">RESTORATION</span><span className="text-slate-400 font-medium">AI</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                                <Icon name="Clock" size={12} className="text-blue-500" />
+                                <span>Time Audit</span>
+                            </div>
+                        </div>
+                    </nav>
+
+                    <main className="max-w-3xl mx-auto px-6 pt-12">
+                        {!showResults ? (
+                            <div className="animate-in">
+                                <header className="text-center mb-10">
+                                    <h1 className="text-3xl sm:text-5xl font-black text-slate-900 mb-3 tracking-tight leading-[1.1]">
+                                        The <span className="text-red-600 relative inline-block">Hidden Time Loss<span className="absolute bottom-1 left-0 w-full h-2 bg-red-100 -z-10 rounded-full"></span></span> Calculator.
+                                    </h1>
+                                    <p className="text-sm sm:text-base text-slate-500 max-w-xl mx-auto font-medium leading-relaxed">
+                                        Input your typical daily time for each task using your own estimates. This will help reveal exactly how much time is being wasted on office work every month.
+                                    </p>
+                                </header>
+
+                                <QuestionGroup title={`Step ${currentStep + 1} of 3: ${categories[currentStep]}`} iconName={iconNames[currentStep]}>
+                                    {currentStep === 0 && (
+                                        <Fragment>
+                                            <IndustrialStepper label="How much time is spent answering the phone daily?" name="phoneHours" value={formData.phoneHours} onUpdate={updateValue} onManualInput={handleManualInput} onReset={resetValue} />
+                                            <IndustrialStepper label="How much time is spent on miscellaneous admin tasks?" name="adminHours" value={formData.adminHours} onUpdate={updateValue} onManualInput={handleManualInput} onReset={resetValue} />
+                                        </Fragment>
+                                    )}
+                                    {currentStep === 1 && (
+                                        <Fragment>
+                                            <IndustrialStepper label="How much time is spent relaying job details and coordinating crew dispatching?" name="dispatchHours" value={formData.dispatchHours} onUpdate={updateValue} onManualInput={handleManualInput} onReset={resetValue} />
+                                            <IndustrialStepper label="How much time is spent confirming appointments and arrival windows with customers?" name="followupHours" value={formData.followupHours} onUpdate={updateValue} onManualInput={handleManualInput} onReset={resetValue} />
+                                        </Fragment>
+                                    )}
+                                    {currentStep === 2 && (
+                                        <Fragment>
+                                            <IndustrialStepper label="How much time is spent manually typing contact info and job notes into your CRM?" name="crmHours" value={formData.crmHours} onUpdate={updateValue} onManualInput={handleManualInput} onReset={resetValue} />
+                                            <IndustrialStepper label="How much time is wasted searching for messages across texts, emails, and social DMs?" name="huntHours" value={formData.huntHours} onUpdate={updateValue} onManualInput={handleManualInput} onReset={resetValue} />
+                                        </Fragment>
+                                    )}
+                                </QuestionGroup>
+
+                                <div className="mt-8 flex justify-center gap-4">
+                                    {currentStep > 0 && (
+                                        <button onClick={() => setCurrentStep(currentStep - 1)} className="px-8 py-5 text-xl font-black rounded-[2rem] shadow-xl border-b-4 text-slate-500 bg-white border-slate-200 flex items-center gap-2 transition-all hover:-translate-y-1 active:scale-95">
+                                            <Icon name="ChevronLeft" size={20} strokeWidth={3} /> BACK
+                                        </button>
+                                    )}
+                                    <button onClick={handleNext} className={`px-8 py-5 text-xl font-black rounded-[2rem] shadow-xl border-b-4 text-white flex items-center gap-3 transition-all hover:-translate-y-1 active:scale-95 ${currentStep === 2 ? 'bg-red-600 border-red-800' : 'bg-blue-600 border-blue-800'}`}>
+                                        {currentStep === 2 ? <Fragment><Icon name="Zap" size={20} fill="currentColor" /> REVEAL TIME WASTED</Fragment> : <Fragment>NEXT <Icon name="ChevronRight" size={20} strokeWidth={3} /></Fragment>}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div ref={resultsRef} className="animate-in pb-20">
+                                <div className="bg-slate-900 rounded-[3.5rem] p-8 sm:p-16 text-center border-4 border-slate-800 shadow-3xl relative overflow-hidden">
+                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-blue-500/10 blur-[120px] pointer-events-none"></div>
+                                    <h2 className="text-slate-400 font-bold uppercase tracking-[0.4em] text-xs mb-10">TOTAL TIME BEING STOLEN</h2>
+                                    <div className="mb-12">
+                                        <div className="text-red-500 font-black text-8xl sm:text-[10rem] leading-none mb-4 drop-shadow-[0_4px_20px_rgba(239,68,68,0.4)]">{totals.monthly}</div>
+                                        <div className="text-red-400 font-bold text-2xl uppercase tracking-[0.15em]">Hours Lost Per Month</div>
+                                    </div>
+                                    <div className="space-y-10 relative z-10">
+                                        <p className="text-white text-2xl sm:text-4xl font-medium leading-[1.2]">That's <span className="text-blue-400 font-bold underline decoration-blue-400/30 underline-offset-8 tabular-nums">{totals.daily} hours every single day</span> you're doing "desk work" instead of growing.</p>
+                                        
+                                        <button 
+                                            onClick={handleClaimClick}
+                                            className="w-full py-8 bg-blue-500 text-white text-2xl sm:text-3xl font-black rounded-[2.5rem] shadow-[0_0_40px_rgba(59,130,246,0.6)] hover:bg-blue-400 border-b-8 border-blue-700 flex items-center justify-center transition-all hover:-translate-y-1 active:scale-95 active:translate-y-1 active:border-b-0"
+                                        >
+                                            Click To Claim Your {totals.monthly} Hours Back
+                                        </button>
+
+                                        <div className="py-12 px-10 bg-slate-800/50 rounded-[2.5rem] border-2 border-slate-700/50 backdrop-blur-md">
+                                            <h3 className="text-blue-400 font-black text-4xl mb-6 tracking-tight">The AI Solution</h3>
+                                            <div className="space-y-6">
+                                                <p className="text-blue-50/90 text-xl sm:text-2xl italic font-bold tracking-tight">Imagine what you could do with those {totals.monthly} extra hours every month.</p>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-700/50 pt-6">
+                                                    <div className="text-white font-black text-2xl uppercase flex items-center justify-center gap-2"><Icon name="TrendingUp" className="text-green-400" size={24} /> Scale Revenue?</div>
+                                                    <div className="text-white font-black text-2xl uppercase flex items-center justify-center gap-2"><Icon name="Heart" className="text-pink-400" size={24} /> True Freedom?</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <button onClick={() => { setShowResults(false); setCurrentStep(0); }} className="text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-2 mx-auto mt-10"><Icon name="RotateCcw" size={16} /> Start Over</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {!showResults && (
+                        <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 z-40 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
+                            <div className="max-w-3xl mx-auto px-2">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Progress</span>
+                                    <span className="text-[10px] font-black text-blue-600">{Math.round(progress)}%</span>
+                                </div>
+                                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-blue-600 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <footer className="mt-10 pt-16 pb-12 text-center text-slate-400">
+                        <div className="font-black text-slate-800 text-sm tracking-[0.3em] mb-4 uppercase">RESTORATION AI SYSTEM</div>
+                        <p className="text-xs mb-2">© {new Date().getFullYear()} Restoration AI. All rights reserved.</p>
+                        <p className="text-[10px] max-w-md mx-auto opacity-60 leading-relaxed">
+                            Audit calculations based on 260 working days per year (5-day week). Individual results vary by company size and call volume.
+                        </p>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
