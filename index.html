@@ -124,7 +124,7 @@
                             />
                             <button 
                                 onClick={() => onReset(name)}
-                                className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-blue-300 hover:text-blue-500 bg-white/80 rounded-md shadow-sm border border-blue-50"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity p-1 text-blue-300 hover:text-blue-500 bg-white/80 rounded-md shadow-sm border border-blue-50"
                             >
                                 <Icon name="RotateCcw" size={10} />
                             </button>
@@ -206,7 +206,7 @@
             };
 
             const handleClaimClick = () => {
-                window.location.href = 'https://link.restorationai.io/widget/bookings/restorationai-specialiststrategy-call';
+                window.location.href = 'https://getrestorationai.com/schedule1';
             };
 
             const progress = ((currentStep + 1) / totalSteps) * 100;
